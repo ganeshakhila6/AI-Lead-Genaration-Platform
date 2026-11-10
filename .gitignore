@@ -1,0 +1,44 @@
+.env
+# Keep example configuration files in the repository.
+!.env.example
+!frontend/.env.example
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# JavaScript dependencies and build output
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Local application output and generated data
+output/
+logs/*.log
+data/*
+!data/.gitkeep
+
+# Local development files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Coverage and test reports
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+
+# Package-manager and tool logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

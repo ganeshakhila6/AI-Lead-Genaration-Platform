@@ -1,0 +1,16 @@
+requests
+pandas
+beautifulsoup4
+python-dotenv
+openai
+openpyxl
+flask
+waitress
+fastapi
+uvicorn
+httpx
+langgraph>=1.0,<2.0
+pypdf>=5.0,<7.0
+python-multipart>=0.0.9
+pypdf>=5.0,<7.0
+python-multipart>=0.0.9
