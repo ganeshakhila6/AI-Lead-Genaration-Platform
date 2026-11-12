@@ -6,10 +6,12 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import html as html_lib
 import requests
+from requests.adapters import HTTPAdapter
 import pandas as pd
+from urllib3.util.retry import Retry
  
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, unquote
 from dotenv import load_dotenv
 from openai import OpenAI
 from backend.product_info import PRODUCT_DESCRIPTION
@@ -37,7 +39,8 @@ SEARCH_WORKERS = 4
 QUALIFICATION_WORKERS = 3
 SERPER_REQUEST_TIMEOUT = 12
 WEBSITE_REQUEST_TIMEOUT = 8
-MAX_PAGES_PER_WEBSITE = 2
+MAX_PAGES_PER_WEBSITE = 5
+MAX_WEBSITE_RESPONSE_BYTES = 3_000_000
  
 OUTPUT_DIR = str(Path(__file__).resolve().parent.parent / "data")
 
@@ -114,11 +117,24 @@ client = OpenAI(api_key=OPENAI_API_KEY, timeout=60, max_retries=0)
 session = requests.Session()
 session.headers.update({
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0 Safari/537.36"
-    )
+        "Mozilla/5.0 (compatible; NueriqLeadResearch/1.0; "
+        "+https://nueriq.com/)"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.8",
 })
+retry_policy = Retry(
+    total=3,
+    connect=3,
+    read=2,
+    status=3,
+    backoff_factor=0.4,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=frozenset({"GET"}),
+    respect_retry_after_header=True,
+)
+session.mount("http://", HTTPAdapter(max_retries=retry_policy))
+session.mount("https://", HTTPAdapter(max_retries=retry_policy))
  
 # =====================================================
 # 2. SEARCH QUERIES (HYDERABAD FOCUS)
@@ -155,7 +171,18 @@ BLOCKED_DOMAINS = [
     "sulekha.com", "urbanpro.com", "quora.com", "yellowpages.in",
     "tripadvisor.com", "classbazaar.com", "uniapply.com", "shiksha.com",
     "collegedunia.com", "twitter.com", "x.com", "pinterest.com",
+    "edtechreview.in", "telanganatoday.com", "timesofindia.indiatimes.com",
+    "thehindu.com", "deccanchronicle.com", "newindianexpress.com",
+    "hindustantimes.com", "indianexpress.com", "news18.com",
 ]
+
+GENERIC_SITE_WORDS = {
+    "academy", "academies", "about", "admission", "admissions", "best",
+    "branch", "branches", "class", "classes", "contact", "course", "courses",
+    "for", "home", "hyderabad", "in", "india", "learn", "learning", "music",
+    "official", "online", "school", "schools", "the", "welcome",
+    "website",
+}
  
 # =====================================================
 # 4. GOOGLE SERPER SEARCH
@@ -192,7 +219,7 @@ def google_search(query, page=1):
  
 def get_domain(url):
     try:
-        domain = urlparse(url).netloc.lower()
+        domain = (urlparse(url).hostname or "").lower()
         if domain.startswith("www."):
             domain = domain[4:]
         return domain
@@ -203,7 +230,41 @@ def get_domain(url):
 def is_valid_domain(domain):
     if not domain:
         return False
-    return not any(blocked in domain for blocked in BLOCKED_DOMAINS)
+    domain = domain.lower().rstrip(".")
+    return not any(
+        domain == blocked or domain.endswith(f".{blocked}")
+        for blocked in BLOCKED_DOMAINS
+    )
+
+
+def _is_likely_company_website(title, domain):
+    """Reject result pages whose host does not identify the named company."""
+    title_tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", (title or "").lower())
+        if token not in GENERIC_SITE_WORDS and len(token) >= 4
+    ]
+    domain_labels = re.findall(r"[a-z0-9]+", (domain or "").lower())
+    domain_labels = [
+        label
+        for label in domain_labels
+        if label not in {"www", "com", "org", "net", "edu", "in", "co"}
+    ]
+    domain_tokens = set(domain_labels)
+    compact_domain = "".join(domain_labels)
+    compact_title = "".join(title_tokens)
+    return any(
+        token in domain_tokens or token in compact_domain
+        for token in title_tokens
+    ) or any(
+        len(label) >= 4 and label in compact_title
+        for label in domain_tokens
+    )
+
+
+def _homepage_url(url):
+    parsed = urlparse(url)
+    return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}/"
  
  
 def root_domain(domain):
@@ -282,14 +343,22 @@ def discover_companies(
             for query, results in executor.map(search_query, query_batch):
                 print(f"\nSearch completed: {query}")
                 for result in results:
-                    website = result.get("link", "")
+                    result_url = result.get("link", "")
+                    parsed_url = urlparse(result_url)
+                    if parsed_url.scheme.lower() not in {"http", "https"}:
+                        continue
+                    website = _homepage_url(result_url)
                     domain = get_domain(website)
-                    if not is_valid_domain(domain):
+                    title = result.get("title", "")
+                    if (
+                        not is_valid_domain(domain)
+                        or not _is_likely_company_website(title, domain)
+                    ):
                         continue
 
                     if domain not in companies:
                         companies[domain] = {
-                            "company_title": result.get("title", ""),
+                            "company_title": title,
                             "website": website,
                             "domain": domain,
                             "google_description": result.get("snippet", ""),
@@ -344,26 +413,54 @@ GENERIC_PREFIXES = ["info", "contact", "hello", "admissions", "admission",
  
  
 def fetch_html(url):
-    """Return raw HTML string or None."""
-    try:
-        response = requests.get(
-            url,
-            headers=dict(session.headers),
-            timeout=WEBSITE_REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
- 
-        content_type = response.headers.get("Content-Type", "")
-        if "text/html" not in content_type.lower():
-            return None
- 
-        if len(response.content) > 3_000_000:
-            return None
- 
-        return response.text
- 
-    except requests.RequestException:
+    """Fetch a bounded HTML response, preferring HTTPS and retrying transient failures."""
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
         return None
+
+    secure_url = parsed._replace(scheme="https").geturl()
+    urls = [secure_url]
+    if parsed.scheme.lower() == "http":
+        urls.append(url)
+
+    for candidate_url in dict.fromkeys(urls):
+        response = None
+        try:
+            response = session.get(
+                candidate_url,
+                timeout=WEBSITE_REQUEST_TIMEOUT,
+                stream=True,
+            )
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" not in content_type.lower():
+                continue
+
+            content_length = response.headers.get("Content-Length")
+            if content_length and int(content_length) > MAX_WEBSITE_RESPONSE_BYTES:
+                continue
+
+            chunks = []
+            total_bytes = 0
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                total_bytes += len(chunk)
+                if total_bytes > MAX_WEBSITE_RESPONSE_BYTES:
+                    chunks = []
+                    break
+                chunks.append(chunk)
+            if not chunks:
+                continue
+            encoding = response.encoding or "utf-8"
+            return b"".join(chunks).decode(encoding, errors="replace")
+        except (requests.RequestException, ValueError):
+            continue
+        finally:
+            if response is not None:
+                response.close()
+
+    return None
  
  
 def clean_emails(candidates):
@@ -413,7 +510,30 @@ def extract_emails_from_html(raw_html):
  
  
 def extract_phones(text):
-    return set(re.findall(r"(?:\+91[\s-]?)?[6-9]\d{9}", text))
+    candidates = re.finditer(
+        r"(?<!\w)(?P<number>\+?\d(?:[\d \t()./-]*\d)?"
+        r"(?:[ \t]*(?:ext\.?|x)[ \t]*\d{1,6})?)(?!\w)",
+        text,
+        flags=re.I,
+    )
+    phones = set()
+    for candidate in candidates:
+        number = candidate.group("number")
+        digit_count = sum(character.isdigit() for character in number)
+        if 7 <= digit_count <= 15:
+            phones.add(number.strip())
+    return phones
+
+
+def extract_phones_from_html(raw_html):
+    """Extract phone numbers from visible text and standard telephone links."""
+    soup = BeautifulSoup(raw_html, "html.parser")
+    phones = extract_phones(soup.get_text(" ", strip=True))
+    for link in soup.find_all("a", href=True):
+        href = unquote(link["href"]).strip()
+        if href.lower().startswith("tel:"):
+            phones.update(extract_phones(href[4:].split("?", 1)[0]))
+    return phones
  
  
 def rank_emails(emails, domain):
@@ -478,12 +598,25 @@ def extract_website_information(company):
         tag.decompose()
  
     all_text = soup.get_text(separator=" ", strip=True)
-    all_phones = set(extract_phones(all_text))
- 
+    all_phones = extract_phones_from_html(home_html)
+
     visited = {website}
- 
-    for page_url in useful_pages[:MAX_PAGES_PER_WEBSITE - 1]:
- 
+
+    contact_paths = (
+        "/contact",
+        "/contact-us",
+        "/contactus",
+        "/about/contact",
+        "/about-us/contact",
+    )
+    candidate_pages = useful_pages + [
+        urljoin(website, path) for path in contact_paths
+    ]
+    for page_url in candidate_pages:
+        if len(visited) >= MAX_PAGES_PER_WEBSITE:
+            break
+        if get_domain(page_url) != domain:
+            continue
         if page_url in visited:
             continue
         visited.add(page_url)
@@ -500,28 +633,7 @@ def extract_website_information(company):
  
         page_text = page_soup.get_text(separator=" ", strip=True)
         all_text += " " + page_text
-        all_phones.update(extract_phones(page_text))
- 
-    # Fallback: try common contact paths if no email found yet.
-    if not all_emails:
-        for path in ["/contact", "/contact-us"]:
-            fallback_url = urljoin(website, path)
-            if fallback_url in visited:
-                continue
-            visited.add(fallback_url)
- 
-            page_html = fetch_html(fallback_url)
-            if page_html is None:
-                continue
- 
-            all_emails.update(extract_emails_from_html(page_html))
-            page_text = BeautifulSoup(
-                page_html, "html.parser"
-            ).get_text(separator=" ", strip=True)
-            all_phones.update(extract_phones(page_text))
- 
-            if all_emails:
-                break
+        all_phones.update(extract_phones_from_html(page_html))
  
     company["website_text"] = all_text[:12000]
     company["emails"] = rank_emails(all_emails, domain)

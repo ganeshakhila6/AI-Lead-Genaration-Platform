@@ -3,10 +3,8 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
-  Mail,
-  MapPin,
+  Phone,
   ShieldCheck,
-  UserRound,
   X,
 } from "lucide-react";
 import StatusBadge from "../common/StatusBadge.jsx";
@@ -119,23 +117,12 @@ export default function LeadDetailsDrawer({
             <div className="space-y-5">
               <section>
                 <h3 className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  Contact
+                  Phone number
                 </h3>
                 <div className="mt-2 rounded-lg border border-line p-3">
-                  <p className="flex items-center gap-2 text-xs font-medium text-slate-800">
-                    <UserRound size={14} className="text-slate-400" />
-                    {lead.contact}
-                    <span className="font-normal text-slate-500">
-                      · {lead.role}
-                    </span>
-                  </p>
-                  <p className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                    <Mail size={14} className="text-slate-400" />
-                    {lead.email}
-                  </p>
-                  <p className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                    <MapPin size={14} className="text-slate-400" />
-                    {lead.location}
+                  <p className="flex items-center gap-2 text-xs text-slate-600">
+                    <Phone size={14} className="shrink-0 text-slate-400" />
+                    {lead.phone || "No phone number found"}
                   </p>
                 </div>
               </section>

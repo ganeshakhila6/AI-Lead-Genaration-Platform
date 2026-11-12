@@ -92,9 +92,9 @@ class FastApiTests(unittest.TestCase):
             "/api/leads/import",
             params={"filename": "leads.csv"},
             content=(
-                "company_name,email,industry\n"
-                "Example Academy,owner@example.com,Music education\n"
-                "Missing Email,,Music education\n"
+                "company_name,email,industry,contact_person,phone,mobile number,website,website_status\n"
+                "Example Academy,owner@example.com,Music education,Alex Owner,+1 (555) 0100-100,+91 98765-43210,https://academy.example,Accessible\n"
+                "Missing Email,,Music education,,,,,\n"
             ),
             headers={"Content-Type": "application/octet-stream"},
         )
@@ -105,6 +105,12 @@ class FastApiTests(unittest.TestCase):
         self.assertEqual(len(result["skipped"]), 1)
         self.assertEqual(result["leads"][0]["company"], "Example Academy")
         self.assertEqual(result["leads"][0]["consent"], "Consent not verified")
+        self.assertEqual(
+            result["leads"][0]["phone"],
+            "+1 (555) 0100-100, +91 98765-43210",
+        )
+        self.assertEqual(result["leads"][0]["contact"], "Alex Owner")
+        self.assertEqual(result["leads"][0]["websiteStatus"], "Accessible")
 
     def test_import_rejects_unsupported_file_type(self):
         response = self.client.post(

@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Eye,
   MailPlus,
+  PhoneCall,
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -44,6 +45,7 @@ export default function LeadsTable({
             lead.company,
             lead.contact,
             lead.email,
+            lead.phone || "",
             lead.website,
             lead.industry,
           ].some((value) => value.toLowerCase().includes(search)),
@@ -99,7 +101,7 @@ export default function LeadsTable({
             Review, qualify, and prepare compliant outreach.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <label className="relative min-w-0 sm:w-52">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -160,7 +162,7 @@ export default function LeadsTable({
                 />
               </th>
               <th className="px-3 py-3">Company</th>
-              <th className="px-3 py-3">Contact</th>
+              <th className="px-3 py-3">Phone</th>
               <th className="px-3 py-3">Email</th>
               <th className="px-3 py-3">Website</th>
               <th className="px-3 py-3">Industry</th>
@@ -209,11 +211,8 @@ export default function LeadsTable({
                     {lead.company}
                   </button>
                 </td>
-                <td className="px-3 py-3.5">
-                  <p className="text-xs font-medium text-slate-700">
-                    {lead.contact}
-                  </p>
-                  <p className="mt-1 text-[10px] text-slate-400">{lead.role}</p>
+                <td className="px-3 py-3.5 text-xs text-slate-600">
+                  {lead.phone || "No phone number found"}
                 </td>
                 <td className="px-3 py-3.5 text-xs text-slate-600">
                   {lead.email}
@@ -248,7 +247,7 @@ export default function LeadsTable({
                   </button>
                 </td>
                 <td className="px-4 py-3.5">
-                  <div className="flex justify-end gap-1">
+                  <div className="flex items-center justify-end gap-1">
                     <button
                       aria-label={`View ${lead.company} details`}
                       className="rounded-md p-2 text-slate-500 hover:bg-white hover:text-brand-700"
@@ -266,6 +265,15 @@ export default function LeadsTable({
                       type="button"
                     >
                       <MailPlus size={15} />
+                    </button>
+                    <button
+                      aria-label={`Call ${lead.company} (coming soon)`}
+                      className="rounded-md p-2 text-slate-400 disabled:cursor-not-allowed"
+                      disabled
+                      title="AI voice calling is not connected yet."
+                      type="button"
+                    >
+                      <PhoneCall size={15} />
                     </button>
                   </div>
                 </td>

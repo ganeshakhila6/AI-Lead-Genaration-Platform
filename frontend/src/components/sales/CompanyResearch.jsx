@@ -1,6 +1,12 @@
 import { Building2, ExternalLink, Lightbulb, MapPin } from "lucide-react";
 
 export default function CompanyResearch({ lead }) {
+  const websiteUrl = lead.website
+    ? /^https?:\/\//i.test(lead.website)
+      ? lead.website
+      : `https://${lead.website}`
+    : "";
+
   return (
     <div className="space-y-4">
       <section>
@@ -19,23 +25,27 @@ export default function CompanyResearch({ lead }) {
             <MapPin size={13} />
             {lead.location}
           </span>
-          <a
-            className="inline-flex items-center gap-1.5 text-brand-700 hover:underline"
-            href={`https://${lead.website}`}
-            onClick={(event) => event.preventDefault()}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <ExternalLink size={12} />
-            {lead.website}
-          </a>
+          {websiteUrl && (
+            <a
+              className="inline-flex items-center gap-1.5 text-brand-700 hover:underline"
+              href={websiteUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <ExternalLink size={12} />
+              {lead.website}
+            </a>
+          )}
         </div>
       </section>
       <section className="rounded-lg border border-line bg-slate-50/70 p-3">
         <h3 className="text-xs font-semibold text-slate-800">Research summary</h3>
         <p className="mt-1.5 text-xs leading-5 text-slate-600">{lead.summary}</p>
         <p className="mt-2 text-[10px] text-slate-500">
-          Source: {lead.source} · Example research, not live sourced
+          Source: {lead.source}
+        </p>
+        <p className="mt-1 text-[10px] text-slate-500">
+          Website status: {lead.websiteStatus || "Not checked"}
         </p>
       </section>
       <section>
@@ -54,15 +64,6 @@ export default function CompanyResearch({ lead }) {
             </li>
           ))}
         </ul>
-      </section>
-      <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
-        <h3 className="text-xs font-semibold text-amber-900">
-          Qualification explanation
-        </h3>
-        <p className="mt-1.5 text-xs leading-5 text-amber-800">
-          This sample lead has a demo score of {lead.score}/100. Qualification
-          and research are illustrative only until the live backend is connected.
-        </p>
       </section>
     </div>
   );

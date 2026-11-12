@@ -1,10 +1,19 @@
-import { AlertCircle, Check, Eye, Mail, Send, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  Eye,
+  Mail,
+  PhoneCall,
+  Send,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 export default function BulkActionToolbar({
   selectedCount,
   viewableCount,
   approvedCount,
+  totalLeadCount,
   onGenerateSelected,
   onViewSelected,
   onSendApproved,
@@ -62,6 +71,16 @@ export default function BulkActionToolbar({
                 {approvedCount}
               </span>
             )}
+          </button>
+          <button
+            aria-label={`Call all ${totalLeadCount} leads`}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-line bg-slate-50 px-3 text-xs font-semibold text-slate-500 disabled:cursor-not-allowed"
+            disabled
+            title="AI voice calling is not connected yet."
+            type="button"
+          >
+            <PhoneCall size={14} />
+            Call all ({totalLeadCount}) · Coming soon
           </button>
         </div>
       </div>

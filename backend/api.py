@@ -206,7 +206,9 @@ def _to_frontend_lead(row, draft=None, send_state=None):
         "contact": (row.get("contact_name") or "").strip() or "Not provided",
         "role": (row.get("contact_role") or "").strip() or "Not provided",
         "email": email,
+        "phone": (row.get("public_phones") or "").strip(),
         "website": website,
+        "websiteStatus": (row.get("website_status") or "").strip(),
         "industry": (row.get("industry") or row.get("business_type") or "").strip()
         or "Not provided",
         "location": (row.get("location") or "").strip() or "Not provided",
@@ -279,8 +281,27 @@ def _normalize_import_row(row, filename):
         "contact_email": "primary_email",
         "name": "contact_name",
         "contact": "contact_name",
+        "contact_person": "contact_name",
+        "full_name": "contact_name",
         "title": "contact_role",
         "role": "contact_role",
+        "phone": "public_phones",
+        "phone_no": "public_phones",
+        "phone_number": "public_phones",
+        "phone_numbers": "public_phones",
+        "contact_phone": "public_phones",
+        "contact_number": "public_phones",
+        "telephone": "public_phones",
+        "telephone_number": "public_phones",
+        "mobile": "public_phones",
+        "mobile_no": "public_phones",
+        "mobile_number": "public_phones",
+        "mobile_phone": "public_phones",
+        "phone_mobile": "public_phones",
+        "cell": "public_phones",
+        "cell_phone": "public_phones",
+        "whatsapp": "public_phones",
+        "whatsapp_number": "public_phones",
         "score": "lead_score",
         "consent": "contact_consent",
         "opt_out": "unsubscribed",
@@ -292,7 +313,13 @@ def _normalize_import_row(row, filename):
         column = _normalize_header(key)
         column = aliases.get(column, column)
         if column in LEAD_FIELDS:
-            normalized[column] = str(value or "").strip()
+            value = str(value or "").strip()
+            if column == "public_phones" and normalized.get(column) and value:
+                existing_numbers = normalized[column].split(", ")
+                if value not in existing_numbers:
+                    normalized[column] = f"{normalized[column]}, {value}"
+            else:
+                normalized[column] = value
 
     normalized["primary_email"] = email_agent.validate_email(
         normalized.get("primary_email", "")

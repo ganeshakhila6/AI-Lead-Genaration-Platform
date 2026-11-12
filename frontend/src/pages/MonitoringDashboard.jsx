@@ -6,6 +6,7 @@ import EmailTimeline from "../components/monitoring/EmailTimeline.jsx";
 import MetricDetailsDrawer from "../components/monitoring/MetricDetailsDrawer.jsx";
 import MonitoringAgentStatus from "../components/monitoring/MonitoringAgentStatus.jsx";
 import MonitoringSummary from "../components/monitoring/MonitoringSummary.jsx";
+import CallAnalysisPanel from "../components/voice/CallAnalysisPanel.jsx";
 import Toast from "../components/common/Toast.jsx";
 import { demoEvents, demoMode } from "../services/demoData.js";
 import { apiRequest } from "../services/api.js";
@@ -127,6 +128,7 @@ export default function MonitoringDashboard() {
         </div>
       )}
 
+      <CallAnalysisPanel />
       <MonitoringSummary
         events={events}
         onSelectMetric={setSelectedMetric}

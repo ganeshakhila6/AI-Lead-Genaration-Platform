@@ -9,6 +9,8 @@ import LeadDetailsDrawer from "../components/sales/LeadDetailsDrawer.jsx";
 import LeadGenerationProgress from "../components/sales/LeadGenerationProgress.jsx";
 import DraftEmailViewer from "../components/sales/DraftEmailViewer.jsx";
 import LeadsTable from "../components/sales/LeadsTable.jsx";
+import CallApprovalQueue from "../components/voice/CallApprovalQueue.jsx";
+import VoiceAgentSetup from "../components/voice/VoiceAgentSetup.jsx";
 import Toast from "../components/common/Toast.jsx";
 import { demoLeads, demoMode } from "../services/demoData.js";
 import { apiRequest } from "../services/api.js";
@@ -520,6 +522,7 @@ export default function SalesDashboard() {
         onViewSelected={() => viewDrafts(selectedDrafts)}
         onSendApproved={sendApprovedDrafts}
         selectedCount={selectedIds.length}
+        totalLeadCount={leads.length}
         viewableCount={selectedDrafts.length}
       />
       <LeadsTable
@@ -530,6 +533,29 @@ export default function SalesDashboard() {
         onViewDraft={(lead) => viewDrafts([lead])}
         selectedIds={selectedIds}
       />
+
+      <details className="group rounded-xl border border-line bg-white shadow-panel">
+        <summary className="cursor-pointer list-none px-4 py-4 sm:px-5">
+          <span className="flex items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-semibold text-ink">
+                Voice calling setup and approvals
+              </span>
+              <span className="mt-1 block text-xs text-muted">
+                Review leads and planned agent settings. Calling is not
+                connected.
+              </span>
+            </span>
+            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-900">
+              Preview only
+            </span>
+          </span>
+        </summary>
+        <div className="space-y-4 border-t border-line p-4 sm:p-5">
+          <CallApprovalQueue error="" leads={leads} loading={false} />
+          <VoiceAgentSetup />
+        </div>
+      </details>
 
       <div className="flex items-start gap-2 px-1 text-[10px] leading-4 text-slate-500">
         <ArrowUpRight className="mt-0.5 shrink-0" size={13} />
