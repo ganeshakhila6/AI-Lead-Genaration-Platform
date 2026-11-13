@@ -103,11 +103,19 @@ export default function LeadGenerationProgress({ state }) {
       )}
       <div className="mt-4 flex flex-wrap gap-5 border-t border-line pt-3 text-xs text-slate-500">
         <span>
-          Leads stored{" "}
+          {state.task === "discovery" ? "New leads found" : "Leads stored"}{" "}
           <strong className="font-semibold text-ink">
             {state.lead_count ?? "—"}
           </strong>
         </span>
+        {state.task === "discovery" && (
+          <span>
+            Total leads saved{" "}
+            <strong className="font-semibold text-ink">
+              {state.total_lead_count ?? "—"}
+            </strong>
+          </span>
+        )}
         <span>
           Rows skipped{" "}
           <strong className="font-semibold text-ink">

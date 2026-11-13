@@ -287,7 +287,7 @@ export default function LeadsTable({
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     {leads.length === 0
-                      ? "Connect the backend or generate leads to populate this table."
+                      ? "No new qualified leads were found. Broaden your search criteria and try again."
                       : "Try changing your search or filters."}
                   </p>
                 </td>

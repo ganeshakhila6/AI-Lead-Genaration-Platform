@@ -42,12 +42,8 @@ export default function SalesDashboard() {
       setBackendStatus("Demo data enabled");
       return;
     }
-    Promise.all([
-      apiRequest({ method: "get", url: "/api/health" }),
-      apiRequest({ method: "get", url: "/api/leads" }),
-    ])
-      .then(([, result]) => {
-        setLeads(result.leads);
+    apiRequest({ method: "get", url: "/api/health" })
+      .then(() => {
         setBackendStatus("FastAPI connected");
       })
       .catch((error) => {
@@ -70,6 +66,7 @@ export default function SalesDashboard() {
         if (job.status === "running") {
           setGeneration({
             ...job,
+            jobId: job.job_id,
             task: "discovery",
             activeStage: 0,
             completedStage: -1,
@@ -86,8 +83,7 @@ export default function SalesDashboard() {
         });
         setDiscovering(false);
         if (job.status === "completed") {
-          const result = await apiRequest({ method: "get", url: "/api/leads" });
-          if (active) setLeads(result.leads);
+          if (active) setLeads(job.new_leads ?? []);
         }
       } catch (error) {
         if (!active) return;
@@ -197,6 +193,7 @@ export default function SalesDashboard() {
   }) {
     if (demoMode || discovering) return;
     setDiscovering(true);
+    setLeads([]);
     setGeneration({
       status: "running",
       task: "discovery",
@@ -219,6 +216,7 @@ export default function SalesDashboard() {
       });
       setGeneration({
         ...job,
+        jobId: job.job_id,
         task: "discovery",
         activeStage: job.status === "running" ? 0 : -1,
         completedStage: job.status === "completed" ? 2 : -1,
@@ -226,8 +224,7 @@ export default function SalesDashboard() {
       if (job.status !== "running") {
         setDiscovering(false);
         if (job.status === "completed") {
-          const result = await apiRequest({ method: "get", url: "/api/leads" });
-          setLeads(result.leads);
+          setLeads(job.new_leads ?? []);
         } else if (job.status === "failed") {
           showToast(job.error || "Lead discovery failed.", "error");
         }

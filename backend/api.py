@@ -509,6 +509,7 @@ def _run_discovery(
         with job_lock:
             jobs[job_id]["message"] = "Running the LangGraph lead discovery workflow."
         reference_text = ""
+        new_leads = []
         if reference_filename:
             report_progress(f"Reading reference file: {reference_filename}.")
             reference_text = _extract_discovery_reference(
@@ -526,18 +527,27 @@ def _run_discovery(
             stream_mode="updates",
         ):
             node_result = next(iter(update.values()))
+            if "final_leads" in node_result:
+                new_leads = node_result["final_leads"]
             with job_lock:
                 jobs[job_id]["message"] = node_result["status"]
+        total_lead_count = len(_read_rows(LEADS_PATH))
+        new_lead_count = len(new_leads)
         with job_lock:
             jobs[job_id].update(
                 {
                     "status": "completed",
                     "message": (
-                        "Lead discovery completed."
-                        if len(_read_rows(LEADS_PATH))
-                        else "Discovery completed, but no leads met the qualification criteria."
+                        f"Found and saved {new_lead_count} new lead"
+                        f"{'' if new_lead_count == 1 else 's'}."
+                        if new_lead_count
+                        else "Discovery completed; no new qualified leads were found."
                     ),
-                    "lead_count": len(_read_rows(LEADS_PATH)),
+                    "lead_count": new_lead_count,
+                    "total_lead_count": total_lead_count,
+                    "new_leads": [
+                        _to_frontend_lead(lead) for lead in new_leads
+                    ],
                     "requested_lead_count": lead_count,
                     "skipped_rows": 0,
                     "completed_at": datetime.now(timezone.utc).isoformat(),

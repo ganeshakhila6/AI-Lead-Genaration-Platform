@@ -89,7 +89,7 @@ export default function FileUpload({
 }) {
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
-  const [leadCount, setLeadCount] = useState("20");
+  const [leadCount, setLeadCount] = useState("3");
   const [selectedState, setSelectedState] = useState("Telangana");
   const [selectedCity, setSelectedCity] = useState("Hyderabad");
   const [targetingPrompt, setTargetingPrompt] = useState("");

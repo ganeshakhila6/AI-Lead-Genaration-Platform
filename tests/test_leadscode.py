@@ -114,6 +114,23 @@ class LeadDiscoveryTests(unittest.TestCase):
         self.assertEqual(companies[0]["domain"], "muzigal.com")
         self.assertEqual(companies[0]["website"], "https://muzigal.com/")
 
+    def test_location_only_prompt_uses_music_queries_for_selected_location(self):
+        searches = []
+
+        def fake_search(query, page):
+            searches.append(query)
+            return []
+
+        with patch.object(leadscode, "google_search", side_effect=fake_search):
+            companies = leadscode.discover_companies(
+                "Location: Hyderabad, Telangana.", target_leads=2
+            )
+
+        self.assertEqual(companies, [])
+        self.assertIn("music academy Hyderabad, Telangana", searches)
+        self.assertIn("music school Hyderabad, Telangana", searches)
+        self.assertTrue(all("Location:" not in query for query in searches))
+
     def test_extract_phones_accepts_international_formats(self):
         phones = leadscode.extract_phones(
             "Call +1 (555) 010-1234, +44 20 7946 0958, "

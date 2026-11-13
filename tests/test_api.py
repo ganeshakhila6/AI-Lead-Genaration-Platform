@@ -180,6 +180,52 @@ class FastApiTests(unittest.TestCase):
         self.assertEqual(api.jobs[job_id]["error"], "provider unavailable")
         log_exception.assert_called_once_with("Lead discovery failed.")
 
+    def test_completed_discovery_reports_new_leads_separately_from_saved_total(self):
+        job_id = "completed-discovery"
+        new_leads = [
+            {
+                "company_name": "New Academy",
+                "primary_email": "owner@new-academy.example",
+                "lead_score": 90,
+            },
+            {
+                "company_name": "Another Academy",
+                "primary_email": "owner@another-academy.example",
+                "lead_score": 85,
+            },
+        ]
+
+        class Graph:
+            @staticmethod
+            def stream(*args, **kwargs):
+                yield {
+                    "qualify_leads": {
+                        "final_leads": new_leads,
+                        "status": "Qualified 2 leads.",
+                    }
+                }
+                yield {"export_leads": {"status": "Exported 2 leads."}}
+
+        with api.job_lock:
+            api.jobs[job_id] = {"job_id": job_id, "status": "running"}
+        with (
+            patch.object(
+                api.agent_workflows,
+                "build_lead_discovery_graph",
+                return_value=Graph(),
+            ),
+            patch.object(api, "_read_rows", return_value=[{}] * 5),
+        ):
+            api._run_discovery(job_id, 2, "Music schools in Hyderabad", "", b"")
+
+        job = api.jobs[job_id]
+        self.assertEqual(job["status"], "completed")
+        self.assertEqual(job["requested_lead_count"], 2)
+        self.assertEqual(job["lead_count"], 2)
+        self.assertEqual(job["total_lead_count"], 5)
+        self.assertEqual(len(job["new_leads"]), 2)
+        self.assertIn("saved 2 new leads", job["message"])
+
     def test_discovery_accepts_jpeg_reference(self):
         response_message = type("Message", (), {"content": "Image reference facts"})()
         response_choice = type(

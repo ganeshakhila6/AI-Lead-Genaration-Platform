@@ -289,7 +289,11 @@ def discover_companies(
  
     companies = {}
     candidate_target = min(MAX_CANDIDATES, max(20, target_leads * 4))
-    if targeting_prompt.strip():
+    target_location = extract_target_location(targeting_prompt)
+    search_prompt = re.sub(
+        r"Location:\s*[^\.\n]+\.?", "", targeting_prompt or "", count=1, flags=re.I
+    ).strip()
+    if search_prompt:
         query_variants = [
             "",
             "official website",
@@ -312,13 +316,21 @@ def discover_companies(
                 // (SERPER_RESULTS * SERPER_PAGES),
             ),
         )
+        base_query = search_prompt
+        if target_location:
+            base_query = f"{base_query} in {target_location}"
         queries = [
-            " ".join((targeting_prompt.strip(), variant)).strip()
+            " ".join((base_query, variant)).strip()
             for variant in query_variants[:query_count]
         ]
         pages_per_query = SERPER_PAGES
     else:
-        queries = list(SEARCH_QUERIES)
+        queries = [
+            query.replace("Hyderabad", target_location)
+            if target_location
+            else query
+            for query in SEARCH_QUERIES
+        ]
         pages_per_query = 1
  
     search_errors = []
